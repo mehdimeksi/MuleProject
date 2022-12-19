@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc" xmlns:accounts-api="http://www.mulesoft.org/schema/mule/accounts-api" xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/accounts-api http://www.mulesoft.org/schema/mule/accounts-api/current/mule-accounts-api.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd">
+	<file:config name="File_Config" doc:name="File Config" doc:id="280621d3-b43f-4d35-ae98-963b53c8cef8" />
+	<flow name="GetAccounts" doc:id="7bdff3d1-6560-4bc4-bc4c-4ab97b448785" >
+		<db:select doc:name="Select" doc:id="eab560bd-2473-40f6-8705-c4c9464bb632" config-ref="TrainDatabase_Config">
+			<db:sql ><![CDATA[select * from flights_customers]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="59f63f43-de1b-4a58-a8dc-4c335691172f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	accountID: payload01.accountID as Number default 0,
+	country: payload01.country default "",
+	street: payload01.street default "",
+	state: payload01.state default "",
+	name: payload01.name default "",
+	city: payload01.city default "",
+	postal: payload01.postal default ""
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="implementationFlow" doc:id="c3d7de62-84b2-45e4-bb5e-fa38db3b08e3" >
+		<http:listener doc:name="Listener" doc:id="1263745a-9620-4405-88ef-88575e1ec0df" config-ref="accounts-api-httpListenerConfig" path="/account" allowedMethods="GET"/>
+		<wsc:consume operation="GetAllTransactions" doc:name="Consume" doc:id="a78e28bd-513a-4b9b-aa5c-7fdc42557106" config-ref="Web_Service_Consumer_Config">
+			<wsc:message >
+				<wsc:body ><![CDATA[#[output application/xml
+ns ns0 http://training.mulesoft.com/
+---
+{
+	ns0#GetAllTransactions: null
+}]]]></wsc:body>
+			</wsc:message>
+		</wsc:consume>
+		<ee:transform doc:name="Transform Message" doc:id="1dc98acf-ed95-4bc0-a74c-4f21d52b05b9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[output application/xml---payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="GetAccount" doc:id="87f8a58a-50c6-4543-bc75-45d84e2c7b74" >
+		<http:listener doc:name="Listener" doc:id="b2b2752d-ab2d-4d18-9719-e3af55142c0c" config-ref="accounts-api-httpListenerConfig" path="/accounts" allowedMethods="GET"/>
+		<set-variable value="#[attributes.queryParams.code]" doc:name="code" doc:id="6488838c-45f8-4585-a113-39e72fb9c828" variableName="code"/>
+		<set-variable value="#[attributes.queryParams.name]" doc:name="name" doc:id="498e8d8e-eb21-4a74-b4bb-930e7d85baa1" variableName="name"/>
+		<http:request method="GET" doc:name="Request" doc:id="ce0c58a4-2aa1-4f38-81be-d41d4af6feb8" config-ref="HTTP_Request_configuration" path="/accounts">
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	"type" : attributes.queryParams.code
+}]]]></http:query-params>
+		</http:request>
+		<ee:transform doc:name="Transform Message" doc:id="71628eb0-f288-4b53-9594-f101093cb1b0" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<validation:is-true doc:name="Is true" doc:id="338d7f21-be1e-43ff-bf62-6e323fcda3d9" expression="#[['business','personal',''] contains vars.code]" message='#["error with the input code " ++ vars.code]'/>
+		<choice doc:name="Choice" doc:id="9214e5ec-82d1-474a-b41a-0c35b22c8fe7" >
+			<when expression="#[vars.code == 'business' or vars.code == 'personal' and vars.name == null]">
+				<logger level="INFO" doc:name="Logger" doc:id="43c565fc-05e3-4021-be1d-c7cfce8cb616" message="#[attributes.queryParams.code]"/>
+				<ee:transform doc:name="business" doc:id="b05f887e-b250-4abd-a999-41a794c5bbe1" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload
+filter($."type" ==vars.code)
+map ( payload01 , indexOfPayload01 ) -> {
+	id: payload01.id,
+	name: payload01.name,
+	"type": payload01."type",
+	address: payload01.address,
+	air_miles: payload01.air_miles,
+	created_at: payload01.created_at
+}  ]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<vm:publish doc:name="Publish" doc:id="f4d168ff-ef1e-4ee2-aee3-f9111edb9f48" config-ref="VM_Config" queueName="accounts"/>
+			</when>
+                      <when expression="#[vars.code == 'personal' and vars.name != null]">
+				<logger level="INFO" doc:name="Logger" doc:id="5d3ec455-ad45-4ac6-9470-12d96ed76583" message="#[attributes.queryParams.code]"/>
+				<ee:transform doc:name="Personal" doc:id="189d8828-4391-455c-96f6-891f50372434" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload filter(($."type" =="personal") and ($.name==vars.name))
+map ( payload01 , indexOfPayload01 ) -> {
+	id: payload01.id,
+	name: payload01.name,
+	"type": payload01."type",
+	address: payload01.address,
+	air_miles: payload01.air_miles,
+	created_at: payload01.created_at
+}  ]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<vm:publish queueName="accounts" doc:name="Publish" doc:id="4fa2c990-412a-45d1-b27f-630cf932b253" config-ref="VM_Config" />
+			
+</when>
+			<otherwise >
+				<logger level="INFO" doc:name="Logger" doc:id="3b81a6a8-3abe-4c60-b4e5-3b7ee966fb27" message="#[attributes.queryParams.code]"/>
+				<ee:transform doc:name="All" doc:id="89dcc23f-61cc-4e53-9151-daf5925b7036" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<vm:publish queueName="accounts" doc:name="Publish" doc:id="74b72a71-0b3c-48a0-9518-fd24e1b68fc6" config-ref="VM_Config" />
+			</otherwise>
+		</choice>
+	</flow>
+	<flow name="InsertFlowToDB" doc:id="de691be5-6e42-499f-8e52-fc4c4e3f67ae" >
+		<vm:listener doc:name="Listener" doc:id="991c2cef-79f3-4ea0-aa29-d9961e7ec60d" config-ref="VM_Config" queueName="accounts"/>
+		<ee:transform doc:name="Transform Message" doc:id="6dcb89ef-8d11-4ed0-9955-7a9946f13b98" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) ->
+{
+	firstName: (payload01.name splitBy ' ' )[1],
+	lastName: (payload01.name splitBy ' ' )[0],
+	account_type:payload01."type",
+	address:payload01.address,
+	postal:7777,
+	country:"USA",
+	miles:payload01.air_miles,
+	creationDate:payload01.created_at as Date
+} ]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="470f270f-b96c-4be1-921a-2f9532818549" collection="#[payload]">
+			<db:insert doc:name="Insert" doc:id="7f015c75-0946-4a67-b095-0bbc50f45434" config-ref="Database_Config">
+			<db:sql><![CDATA[insert into public.account (firstname,lastname,type_account,address,postal,country,miles,creationdate) values (:firstName,:lastName,:account_type,:address,:postal,:country,:miles,:creationDate)]]></db:sql>
+			<db:input-parameters><![CDATA[#[output application/java
+---
+  {
+	"firstName":payload.firstName,
+	"lastName":payload.lastName,
+	"account_type":payload.account_type,
+	"address":payload.address,
+	"country":payload.country,
+	"postal":payload.postal,
+	"miles":payload.miles,
+	"creationDate":payload.creationDate
+	}]]]></db:input-parameters>
+		</db:insert>
+		</foreach>
+	</flow>
+	<flow name="implementationFlow1" doc:id="27975c33-d144-49d3-8f66-2dbcc2712c61" >
+		<http:listener doc:name="Listener" doc:id="1f9573ff-a2b9-49b9-a851-18e047b87d72" config-ref="accounts-api-httpListenerConfig" path="/value" allowedMethods="POST"/>
+		<ee:transform doc:name="Transform Message" doc:id="1cfdb7af-b134-4a75-b215-8b13c0f80e43">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload ++ {write_date: now()} ]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<file:write doc:name="Write" doc:id="59c5f219-bbe3-4fc4-836d-9a5921c2ed93" config-ref="File_Config" path="C:\Users\mehdi.meksi\OneDrive - Keyrus\Bureau\MuleSoft Training\APDevFundamentals4.4_studentFiles_SP_27jun2022\resources\test.csv">
+		</file:write>
+	</flow>
+	<flow name="implementationFlow2" doc:id="d55e6b53-bd0a-4820-b7ac-2778d7427cc8" >
+		<http:listener doc:name="Listener" doc:id="8f012f88-9949-408b-b531-6377bb58b6cc" config-ref="accounts-api-httpListenerConfig" path="/value" allowedMethods="GET" />
+		<set-payload value="#[[1,2,'b','c',4,6,null,9]]" doc:name="[1,2,'b','c',4,6,null,9]" doc:id="be196415-0f57-4109-8ed6-389be25f2a9a" />
+		<batch:job jobName="implementationBatch_Job" doc:id="a8107a90-d979-41b6-86dc-0525bdf66352" maxFailedRecords="10000000">
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="567b7368-6803-4c0d-9351-e80f7a0ddffa" acceptExpression="#[payload is Number]" acceptPolicy="ALL">
+					<set-payload value="#[payload * 10]" doc:name="payload * 10" doc:id="552a154b-12c2-4828-ae81-2c7c9da805df" />
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="01d31164-aa6a-48cf-86fd-add98b65eb50" size="2">
+						<logger level="INFO" doc:name="Logger" doc:id="d62cd587-7b9e-47a2-b4cc-132c7b90baa1" message="#[payload]"/>
+					</batch:aggregator>
+				</batch:step>
+				<batch:step name="Batch_Step1" doc:id="495a85ab-de6e-4a2c-83ea-8419d3429682" acceptPolicy="ALL" acceptExpression="#[payload != null]">
+					<set-payload value="#[upper(payload)]" doc:name="Set Payload" doc:id="86b168fe-37e3-41ca-a190-968d0aba4531" />
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="eec3e318-e2cb-4698-829f-b08df92a01e3" size="2">
+						<logger level="INFO" doc:name="Logger" doc:id="c2f96b1c-2c4d-4c9f-8c5a-33e400aa812b" message="#[payload]"/>
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="c35f1448-4a80-40ed-a937-fc05db99b217" message="#[payload]"/>
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+	<flow name="implementationFlow3" doc:id="8083f6d7-d14d-4348-81c7-3aebd1ac6908" >
+		<http:listener doc:name="Listener" doc:id="d4bbb625-4d07-489d-b8a7-401caf715725" config-ref="accounts-api-httpListenerConfig" path="*/error" allowedMethods="GET"/>
+		<set-payload value="HELLO" doc:name="HELLO" doc:id="56ad042f-be79-4ae9-ab89-617b149f89fc" />
+		<try doc:name="Try" doc:id="c6056088-f213-4454-8ba9-4efcd61b3d25" >
+			<validation:is-number numberType="INTEGER" doc:name="Is number" doc:id="388fc0de-62e6-4e85-aee7-e06735a1bb92" value="#[payload]">
+		</validation:is-number>
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="d62cefce-6dde-4b4f-93c3-72980892adf0" >
+					<set-payload value="On Error Continue" doc:name=" On Error Continue" doc:id="8fcdd839-cf3c-4ec7-9a28-256226560555" />
+				</on-error-continue>
+			</error-handler>
+		</try>
+		<validation:is-blank-string doc:name="Is blank string" doc:id="ef29260e-6501-4217-96a3-840586387fb7" value="#[payload]"/>
+		<set-payload value="payload is Number" doc:name="payload is Number" doc:id="e5f17a90-87de-41f6-82e2-b98526a07262" />
+		<error-handler>
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="d947a5ca-75ce-4ede-a2a6-d08e80a36a98" >
+				<set-payload value="Error main flow" doc:name="Error main flow" doc:id="9698ab10-195a-4654-9276-45d831eecf53" mimeType="application/json" />
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<!-- [STUDIO:"getAllAcounts"]	<flow name="getAllAcounts" doc:id="3005b044-2c08-46d3-89a3-1699c6e4f3d1" >
+		<db:select doc:name="Select" doc:id="aacd1dbc-6692-4fc7-9bf0-96732aecbb1a" config-ref="Database_Config">
+			<db:sql ><![CDATA[SELECT *
+	FROM public.account]]></db:sql>
+		</db:select>
+		<ee:transform doc:name="Transform Message" doc:id="8bf81efb-3ca2-4c0e-9465-463c71614a63" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+&#45;&#45;-
+Accounts:payload map (payload01, indexOfPayload01) ->
+   Account:{
+	id: payload01.user_id,
+	firstName: payload01.firstname,
+  	lastName: payload01.lastname,
+  	address: payload01.address,
+  	postal: payload01.postal,
+  	country: payload01.country,
+  	miles: payload01.miles as Number {class: "java.lang.Integer"},
+  	creationDate: payload01.creationdate as Date {format:"yyyy/MM/dd"} as
+  	String {format:"MMM dd, yyyy"},
+  	type_account: payload01.type_account
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="1e90bbed-98e7-436f-944b-250284cabe76" message="#[payload]"/>
+	</flow> [STUDIO] -->
+</mule>

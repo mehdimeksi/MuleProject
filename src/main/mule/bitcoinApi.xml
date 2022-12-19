@@ -1,0 +1,73 @@
+<!-- [STUDIO:"bitcoinApiFlow2"]<?xml version="1.0" encoding="UTF-8"?> [STUDIO] -->
+
+<mule xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
+<!-- [STUDIO:"bitcoinApiFlow"]	<flow name="bitcoinApiFlow" doc:id="b81166fa-c835-4be5-adc5-c01630f665cc" >
+		<http:listener doc:name="Listener" doc:id="1f652bfb-0576-41ba-95a9-d2d39cda01bd" config-ref="accounts-api-httpListenerConfig" path="/currency" allowedMethods="GET"/>
+		<http:request method="GET" doc:name="Request" doc:id="74dd3da5-8849-4939-905f-b8afb8b8b330" config-ref="HTTP_Request_configuration_coin" path="/api/v3/ticker/24hr" sendBodyMode="ALWAYS"/>
+	</flow> [STUDIO] -->
+	<flow name="bitcoinApiFlow1" doc:id="72c7feda-1966-4393-9c58-9699a4a2c648" >
+		<http:listener doc:name="Listener" doc:id="b8ad5ddf-edee-4803-bf27-305c9408a3be" config-ref="accounts-api-httpListenerConfig" path="/currency" allowedMethods="GET" >
+			<http:response >
+				<http:body ><![CDATA[#[output application/json 
+---
+ payload]]]></http:body>
+			</http:response>
+		</http:listener>
+		<db:select doc:name="Select accounts" doc:id="33f09efc-9f17-4f5f-ada9-842ed6c5a9a0" config-ref="Database_Config">
+			<db:sql><![CDATA[select user_id from public.account limit 15]]></db:sql>
+		</db:select>
+		<parallel-foreach doc:name="Parallel For Each" doc:id="708ffd75-2060-497c-adef-8b44f204f7bc" >
+			<scatter-gather doc:name="Scatter-Gather" doc:id="85c7ca24-a4b3-4c9f-bcb9-b69fed91868a">
+				<route>
+					<db:select doc:name="Select accounts" doc:id="73ca4af2-d0fa-483d-910c-f2625bbf1b7d" config-ref="Database_Config">
+			<db:sql><![CDATA[select user_id, firstname,lastname from public.account where user_id =:id ]]></db:sql>
+						<db:input-parameters><![CDATA[#[{
+	id:payload.user_id
+}]]]></db:input-parameters>
+		</db:select>
+				</route>
+				<route>
+					<db:select doc:name="Select adress " doc:id="eaadd034-47b5-4f86-abf6-bbd96a7b5579" config-ref="Database_Config" targetValue='#[payload default ["N/A"]]'>
+			<db:sql><![CDATA[select address from public.account where user_id=:id ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	id:payload.user_id
+}]]]></db:input-parameters>
+		
+</db:select>
+				</route>
+			</scatter-gather>
+			<ee:transform doc:name="Transform Message" doc:id="cc72d0dc-0aa1-4f90-90c0-067d105ffe90">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+var address=payload."1".payload map{
+	address:$.address
+}
+---
+payload."0".payload map{
+	id:$.user_id,
+	firstname:upper($.firstname),
+	lastname:upper($.lastname),
+	address:address.address reduce ((item, accumulator) ->{
+		address:address.address
+	} )
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		</parallel-foreach>
+		<ee:transform doc:name="Transform Message" doc:id="69fc5d8d-9eae-43c0-aabb-9894531f2bc9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+flatten(payload.payload)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>

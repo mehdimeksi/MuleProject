@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:wsc="http://www.mulesoft.org/schema/mule/wsc"
+	xmlns:vm="http://www.mulesoft.org/schema/mule/vm"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd
+http://www.mulesoft.org/schema/mule/wsc http://www.mulesoft.org/schema/mule/wsc/current/mule-wsc.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<configuration-properties doc:name="Configuration properties" doc:id="aa41fabf-61e1-41ad-89a8-3a1e50bad4aa" file="config.yaml" />
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="bf8e8b71-e143-408e-be5e-452a15ec3119" >
+		<db:generic-connection url="${db.url}" driverClassName="org.postgresql.Driver" user="${db.user}" password="${db.password}" />
+	</db:config>
+	<db:config name="TrainDatabase_Config" doc:name="Database Config" doc:id="019e6fd0-55cb-4aa4-a3ab-479d7c940242" >
+		<db:my-sql-connection host="${db_train.host}" port="${db_train.port}" user="${db_train.user}" password="${db_train.password}" database="${db_train.database}"/>
+	</db:config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="021a666c-da7b-4134-8e09-25c64a63ff7f" >
+		<http:request-connection host="${training.host}" port="${training.port}" />
+		<http:default-headers >
+			<http:default-header key="client_secret" value="${training.client_secret}" />
+			<http:default-header key="client_id" value="${training.client_id}" />
+			<http:default-header key="user_id" value="R-ID-7777" />
+		</http:default-headers>
+	</http:request-config>
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="5b6280f4-b452-4a06-90b5-ef8c53ea8eab" >
+		<vm:queues >
+			<vm:queue queueName="accounts" />
+		</vm:queues>
+	</vm:config>
+	<wsc:config name="Web_Service_Consumer_Config" doc:name="Web Service Consumer Config" doc:id="390e2f20-62bb-4441-a816-dd8797ddb4d7" >
+		<wsc:connection wsdlLocation="http://apdev-accounts-ws.cloudhub.io/api/transactions?wsdl" service="TransactionServiceService" port="TransactionServicePort" address="http://apdev-accounts-ws.cloudhub.io/api/transactions" >
+			<wsc:web-service-security actor="http://schemas.xmlsoap.org/soap/actor/next" />
+		</wsc:connection>
+	</wsc:config>
+	<configuration doc:name="Configuration" doc:id="487af768-ca49-45a3-a2c3-0c0abde0c002" defaultErrorHandler-ref="globalError_Handler" />
+	<http:request-config name="HTTP_Request_configuration_coin" doc:name="HTTP Request configuration" doc:id="8c21107e-8d01-4d30-984e-e17485680a5a">
+		<http:request-connection protocol="HTTPS" host="api2.binance.com" />
+	</http:request-config>
+	<error-handler name="globalError_Handler" doc:id="bad7833b-e534-4bf0-9654-b40d3617cff9" >
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="a8a78e30-6e6d-4499-bfe6-b378e8029530" >
+			<set-payload value="global error handler" doc:name="global error handler" doc:id="aac8641f-dfa3-439e-9151-1b99f6466347" />
+		</on-error-continue>
+	</error-handler>
+</mule>

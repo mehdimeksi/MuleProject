@@ -1,0 +1,19 @@
+db:
+  url: "jdbc:postgresql://localhost:5432/Accounts"
+  user: "postgres"
+  password: "admin"
+  
+db_train:
+  host: "mudb.learn.mulesoft.com"
+  port: "3306"
+  user: "mule"
+  password: "mule"
+  database: "training"
+  
+training:
+  host: "diy-accounts-api.us-w2.cloudhub.io"
+  port: "80"
+  basepath: "/"
+  protocol: "HTTP"
+  client_id: "6d9e329147164bf08a2cc4eeb075252e"
+  client_secret: "B20a21B05dBb4287a7C49076D6E0d377"
